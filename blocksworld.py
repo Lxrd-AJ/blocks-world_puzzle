@@ -17,3 +17,13 @@ print(goal_state)
 
 blocksword = BlocksWorldProblem(initial_state, goal_state)
 print(blocksword)
+
+
+"""
+https://github.com/aimacode/aima-python/blob/master/search.py
+__TODO__:
+[ ] Depth-first search
+[ ] Bread-first search
+[ ] Iterative deepening 
+[ ] A* heuristic method
+"""
