@@ -48,7 +48,7 @@ goal_state[5] = 'A'
 goal_state[9] = 'B'
 goal_state[13] = 'C'
 
-blocksword = BlocksWorldProblem(initial_state, goal_state, _AGENT_)
+blocksworld = BlocksWorldProblem(initial_state, goal_state, _AGENT_)
 
 # show_maze( initial_state, 4 )
 
@@ -78,14 +78,14 @@ def depth_first_search( problem, fileH):
     return tree_search(problem, LifoQueue(), fileH)
 
 with open('log_bfs.txt', 'w') as f:
-    goal = bread_first_search( blocksword, f )
+    goal = bread_first_search( blocksworld, f )
     print("===" * 10)
     print("BFS Goal State found")
     print(str(goal))
 
 # Depth-First Search - LIFO Queue
 with open('log_dfs.txt', 'w') as f:
-    goal = depth_first_search( blocksword, f )
+    goal = depth_first_search( blocksworld, f )
     print("===" * 10)
     print("DFS Goal State found")
     print(str(goal))
