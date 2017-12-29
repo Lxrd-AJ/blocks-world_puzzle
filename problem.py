@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+import numpy as np
 
 class BlocksWorldProblem(object):
     def __init__(self, initial, goal, agent_marker):
@@ -16,6 +16,8 @@ class BlocksWorldProblem(object):
         self.BACK = -1
         self.FORWARD = 1 
         self.DOWN = 4
+
+        self.map_2D = np.arange(16).reshape((4,4))
 
         self.state_mapping = {
             0: [1,4],
@@ -47,12 +49,20 @@ class BlocksWorldProblem(object):
 
         return possible_actions
 
-    def agent_location(self, state):
+    def search_marker_in_state( self, marker, state ):
         for i in range(0, len(state)):
-            if self.agent_marker == state[i]:
+            if marker == state[i]:
                 return i  
-        print("** The impossible happened, the agent is not in the maze")
+        print("** The impossible happened, " + str(marker) + " is not in the maze")
         return None 
+
+    def agent_location(self, state):
+        return self.search_marker_in_state( self.agent_marker, state )
+        # for i in range(0, len(state)):
+        #     if self.agent_marker == state[i]:
+        #         return i  
+        # print("** The impossible happened, the agent is not in the maze")
+        # return None 
 
     """
     The resulting state from applying the action in the current state
@@ -79,6 +89,21 @@ class BlocksWorldProblem(object):
 
     def path_cost(self, c, state1, action, state2):
         return c + 1
+
+    def manhattan_cost( self, state1, state2 ):
+        total_cost = 0
+
+        for e in ('A','B','C'):
+            loc1 = self.search_marker_in_state( e, state1 )
+            loc2 = self.search_marker_in_state( e, state2 )
+            cartesian1 = np.where( self.map_2D == loc1 )
+            cartesian2 = np.where( self.map_2D == loc2 )
+
+            cost = abs((cartesian1[0][0]+1) - (cartesian2[0][0]+1)) + abs((cartesian1[1][0]+1) - (cartesian2[1][0]+1))
+            total_cost += cost
+
+        return total_cost
+            
     
 class Node(object):
     def __init__(self, state, parent=None, action=None, path_cost=0):
@@ -92,6 +117,15 @@ class Node(object):
 
     def __repr__(self):
         return "<Node {}>".format(self.state)
+
+    def __lt__(self, node):
+        return str(self.state) < str(node.state)
+
+    def __eq__(self, other):
+        return isinstance(other, Node) and hash(str(self.state)) == hash(str(other.state))
+
+    def __hash__(self):
+        return hash(str(self.state))
 
     def child_node( self, problem, action):
         next = problem.result(self.state, action)
