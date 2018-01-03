@@ -43,6 +43,7 @@ def tree_search( problem, frontier=Queue(), fileH=None):
     while not frontier.empty():
         node = frontier.get_nowait()
         explored.add( str(node.state) )
+        # utilities.observe( node )
         print(str(node) + " = " + str(node.path_cost))
         if fileH:
             fileH.write(str(node) + "\n")
@@ -149,8 +150,15 @@ __TODO__:
 [x] Iterative deepening 
 [x] A* heuristic method
 
-[ ] Deep reinforcement learning (Q-Learning) http://www.samyzaf.com/ML/rl/qmaze.html
+[ ] Deep reinforcement learning (Q-Learning) 
+    * http://www.samyzaf.com/ML/rl/qmaze.html
+    * https://github.com/khpeek/Q-learning-Hanoi
+    * https://sandipanweb.wordpress.com/2017/03/24/solving-4-puzzles-with-reinforcement-learning-q-learning-in-python/
+    * https://deepmind.com/blog/deep-reinforcement-learning/
+    * http://www.cs.cmu.edu/~rsalakhu/10703/Lecture_DQL.pdf
+    * http://hunch.net/~beygel/deep_rl_tutorial.pdf
+    * https://medium.com/emergent-future/simple-reinforcement-learning-with-tensorflow-part-0-q-learning-with-tables-and-neural-networks-d195264329d0
 # Utilities
-[ ] Utility function to show a state
+[ ] Utility function to show a state which is then added to tree search so a live view is available
 [ ] Graphviz visualisation of how a tree is traversed
 """
