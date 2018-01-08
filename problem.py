@@ -1,4 +1,5 @@
 import numpy as np
+from random import shuffle
 
 class BlocksWorldProblem(object):
     def __init__(self, initial, goal, agent_marker):
@@ -132,8 +133,12 @@ class Node(object):
         cost = problem.path_cost(self.path_cost, self.state, action, next)
         return Node(next, self, action, cost)
 
-    def expand(self, problem):
-        return [self.child_node(problem, action) for action in problem.actions(self.state)]
+    def expand(self, problem, random=False):
+        #TODO: Add the option to randomise this expansion
+        actions = problem.actions(self.state)
+        if random:
+            shuffle(actions)
+        return [self.child_node(problem, action) for action in actions]
 
     def path(self):
         node, path_back = self, []

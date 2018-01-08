@@ -20,12 +20,12 @@ actions = {
 num_actions = len(actions.keys())
 
 #Markers
-EMPTY_MARKER = 0
 AGENT_MARKER = 47
-A_MARKER = 10
-B_MARKER = 20
-C_MARKER = 30
-BLOCK_MARKERS = [A_MARKER, B_MARKER, C_MARKER]
+_FREE_ = 0
+_BLOCK_ = 10
+_FLAG_ = 20
+_TARGET_ = 40
+
 
 _START_ = "_START_"
 _OUT_OF_BOUNDS_ = "_OUT_OF_BOUNDS_"
@@ -36,48 +36,52 @@ _IN_PROGRESS_ = "_IN_PROGRESS_"
 _COMPLETE_ = "_COMPLETE_"
 _MOVED_BLOCK_ = "_MOVED_BLOCK_"
 
-
+"""
+0 is a free cell
+1 is a blocked location
+"""
 class BlocksWorld(object):
-    def __init__(self, initial, goal, agent_location=(3,3),convolution=False):
+    def __init__(self, initial, agent_location=(0,0)):
         self._puzzle = initial
-        self.goal = goal
-        nrows, ncols = self._puzzle.shape 
+        nrows, ncols = self._puzzle.shape
+        self.goal = (nrows-1,ncols-1)
         self.agent_location = agent_location
-        self.convolution = convolution
+        self.free_cells = [(r,c) for r in range(nrows) for c in range(ncols) if self._puzzle[r,c] == _FREE_]
         self.reset()
 
     def reset(self):
-        #TODO: Do not randomise the puzzle, rever to initial on reset
-        # self._puzzle, agent_location = self.random_puzzle_agent_location()
-        # self.agent_location = agent_location
-
+        self._puzzle,self.agent_location = self.random_puzzle_agent_location()
         self.puzzle = np.copy(self._puzzle)
         self.state = (self.agent_location[0], self.agent_location[1], _START_)
-        self.min_reward = -0.6 * self.puzzle.size #-0.5 * self.puzzle.size
+        self.min_reward = -0.5 * self.puzzle.size #-0.5 * self.puzzle.size
         self.total_reward = 0
         self.visited = set()
 
     def random_puzzle_agent_location(self):
+        #TODO: Let the agent always start at (0,0)
         stride = self._puzzle.shape[0]
         puzzle = np.arange(self._puzzle.size).reshape((stride,stride))
+        nrows, ncols = self._puzzle.shape
+        self.goal = (nrows-1,ncols-1)
         puzzle[:] = 0
-        for marker in BLOCK_MARKERS:
-            not_found = True
-            while not_found:
-                random_location = tuple(np.random.choice(stride, (1,2))[0])
-                if puzzle[random_location] == 0:
-                    puzzle[random_location] = marker
-                    not_found = False
-                    break
-        location = None
-        while True:
-            random_location = tuple(np.random.choice(stride, (1,2))[0])
-            if not (puzzle[random_location] in BLOCK_MARKERS):
-                location = random_location
-                puzzle[random_location] = AGENT_MARKER
-                break
-        
-        return (puzzle, location)
+        puzzle[self.goal] = _TARGET_
+        blocks = int(self._puzzle.size * 0.2)
+        agent_location = (0,0)
+        # Code commented out as agent location is now always at (0,0)
+        # while True:
+        #     agent_location = tuple(np.random.choice(stride, (1,2))[0])
+        #     if agent_location != (nrows-1,ncols-1):
+        #         puzzle[agent_location] = AGENT_MARKER
+        #         break
+        while blocks > 0:
+            block_location = tuple(np.random.choice(stride, (1,2))[0])
+            if block_location != agent_location \
+                and puzzle[block_location] == _FREE_ \
+                and block_location != (self.goal[0]-1,self.goal[1]) \
+                and block_location != (self.goal[0], self.goal[1]-1): 
+                puzzle[block_location] = _BLOCK_
+                blocks += -1
+        return puzzle,agent_location
 
     def update_state(self, action):
         def move(action,row,col):
@@ -95,20 +99,13 @@ class BlocksWorld(object):
         self.visited.add( (row,col) )
         valid_actions = self.valid_actions_in_state(row,col)
         
-        if not action in valid_actions:
+        if not valid_actions:
             self.state = (self.state[0], self.state[1], _OUT_OF_BOUNDS_)
-        elif action in valid_actions:
-            mode = _PROGRESS_
+        elif action in valid_actions:            
             nrow, ncol = move(action, row, col)
-            if self.puzzle[nrow, ncol] in BLOCK_MARKERS:
-                block = self.puzzle[nrow, ncol]
-                self.puzzle[row,col] = block
-                self.puzzle[nrow,ncol] = AGENT_MARKER
-                mode = _MOVED_BLOCK_
-            else:
-                self.puzzle[row,col] = EMPTY_MARKER
-                self.puzzle[nrow,ncol] = AGENT_MARKER
-            self.state = (nrow, ncol, mode)
+            self.puzzle[row,col] = _FREE_
+            self.puzzle[nrow,ncol] = AGENT_MARKER
+            self.state = (nrow, ncol, _PROGRESS_)
         else:
             self.state = (self.state[0], self.state[1], _NO_ACTION_)
     
@@ -117,25 +114,12 @@ class BlocksWorld(object):
             return 1.0 
         elif self.state[2] == _OUT_OF_BOUNDS_:
             return self.min_reward - 1
+        elif (self.state[0], self.state[1]) in self.visited:
+            return -0.25
         elif self.state[2] == _NO_ACTION_:
             return -0.75
         elif self.state[2] == _PROGRESS_:
-            return 0 #-0.3 #-0.1
-        elif self.state[2] == _MOVED_BLOCK_:
-            #Should the agent be rewarded for stacking blocks irrespective of the positions/order/complteness
-            reward = 0 #-0.1 #-0.5 #0.0
-
-            A_block = self.search_for_marker( A_MARKER, self.goal )
-            B_block = self.search_for_marker( B_MARKER, self.goal )
-            C_block = self.search_for_marker( C_MARKER, self.goal )
-
-            if (A_block[0]+1,A_block[1]) == B_block:
-                reward += 0.15
-            if (B_block[0]+1,B_block[1]) == C_block:
-                reward += 0.15 
-
-            return reward
-
+            return -0.04
 
     def act(self, action):
         self.update_state(action)
@@ -147,25 +131,13 @@ class BlocksWorld(object):
 
     def observe(self):
         canvas = self.draw_env()
-        if self.convolution:
-            canvas = np.array(canvas)
-            print(canvas.shape)
-            return canvas
-        else:
-            return canvas.reshape((1,-1)) 
+        return canvas.reshape((1,-1)) 
 
     def draw_env(self, canvas=None):
         if canvas is None:
             canvas = np.copy(self.puzzle)
-        rows,cols = self.puzzle.shape
-        # for row in range(rows):
-        #     for col in range(cols):
-        #         if canvas[row,col] in BLOCK_MARKERS:
-        #             canvas[row,col] = block_color
-        #             print("Block found = " + str((row,col)))
-        #         elif self.puzzle[row,col] == AGENT_MARKER:
-        #             print("Agent found = "+ str((row,col)))
-        #             canvas[row,col] = agent_color
+        # for (row,col) in self.visited:
+        #     canvas[row,col] = 5
         return canvas
 
     def game_status(self):
@@ -181,21 +153,19 @@ class BlocksWorld(object):
             return (loc[0][0], loc[1][0])
 
     def puzzle_solved(self):
-        A_block = self.search_for_marker( A_MARKER, self.goal )
-        B_block = self.search_for_marker( B_MARKER, self.goal )
-        C_block = self.search_for_marker( C_MARKER, self.goal )
-
-        if self.puzzle[A_block] == self.goal[A_block] and \
-           self.puzzle[B_block] == self.goal[B_block] and \
-           self.puzzle[C_block] == self.goal[C_block]:
+        nrows, ncols = self.puzzle.shape 
+        if self.state[0] == nrows -1 and self.state[1] == ncols - 1:
             return True
-        else: 
+        else:
             return False
 
     def random_valid_action(self):
         row,col,mode = self.state 
         actions = self.valid_actions_in_state(row,col)
-        return random.choice(actions)
+        if actions:
+            return random.choice(actions)
+        else:
+            return None 
     
     def valid_actions_in_state(self, row, col):
         actions = [UP, DOWN, LEFT, RIGHT]
@@ -210,12 +180,20 @@ class BlocksWorld(object):
         elif col == num_cols -1:
             actions.remove(RIGHT)
 
-        #No need to check for road blocks as there are no blocking tiles in this game yet
+        if row > 0 and self.puzzle[row-1,col] == _BLOCK_:
+            actions.remove(UP)
+        if row < num_rows-1 and self.puzzle[row+1,col] == _BLOCK_:
+            actions.remove(DOWN)
+        if col > 0 and self.puzzle[row,col-1] == _BLOCK_:
+            actions.remove(LEFT)
+        if col < num_cols-1 and self.puzzle[row,col+1] == _BLOCK_:
+            actions.remove(RIGHT)
+
         return actions
 
 
 class Experience(object):
-    def __init__(self, model, max_memory=100, discount=0.85):
+    def __init__(self, model, max_memory=100, discount=0.95):
         self.model = model 
         self.max_memory = max_memory
         self.discount = discount
@@ -237,12 +215,12 @@ class Experience(object):
         inputs = np.zeros((batch_size, env_size))
         targets = np.zeros((batch_size, self.num_actions))
         for i, j in enumerate(np.random.choice(range(mem_size), batch_size, replace=False)):
-            envstate, action, reward, next_envstate, game_status = self.memory[j]
+            envstate, action, reward, next_envstate, game_status, loss = self.memory[j]
             inputs[i] = envstate            
             targets[i] = self.predict(envstate)
             Q_sa = np.max(self.predict(next_envstate))
             if game_status == _COMPLETE_:
                 targets[i, action] = reward
             else:
-                targets[i, action] = reward + self.discount * Q_sa
+                targets[i, action] = (reward + self.discount * Q_sa) #- loss 
         return inputs, targets
